@@ -1,0 +1,39 @@
+# ========== 密钥与本地环境（绝对不能提交）==========
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# ========== 向量库（可由 data/ 重新生成，体积大）==========
+chroma_onepiece_vsdb/
+chroma_*/
+*.vsdb/
+
+# ========== IDE / 编辑器 ==========
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# ========== 操作系统 ==========
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========== 临时文件 ==========
+*.log
+*.tmp
+~$*

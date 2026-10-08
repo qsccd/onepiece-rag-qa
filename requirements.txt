@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+langchain-chroma
+langchain-community
+langchain-core
+langchain-openai
+langchain-text-splitters
+dashscope
+python-dotenv
+python-pptx
