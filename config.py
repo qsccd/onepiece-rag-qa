@@ -25,7 +25,9 @@ CHUNK_SIZE = 700
 CHUNK_OVERLAP = 80
 
 # 检索参数
-TOP_K = 50
+# 可用环境变量覆盖：部署到公网演示时调小，可显著降低单次提问的 token 消耗
+TOP_K = int(os.getenv("TOP_K", "50"))
+LIST_TOP_K = int(os.getenv("LIST_TOP_K", "100"))
 
 # LLM 模型配置
 OPENAI_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")

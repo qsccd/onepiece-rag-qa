@@ -3,6 +3,9 @@
 支持流式输出 (Server-Sent Events)
 """
 import json
+import os
+import time
+from collections import defaultdict
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +33,34 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# ── 简易限流（公网部署时防止 API 额度被刷爆）──────────────────
+# 默认：每个 IP 每 5 分钟最多 20 次提问；可用环境变量 RATE_LIMIT_PER_5MIN 调整
+RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_5MIN", "20"))
+_RATE_WINDOW = 300
+_hits = defaultdict(list)
+
+
+def _client_ip(request: Request) -> str:
+    """优先读取代理转发的真实 IP（Render 等平台会带 X-Forwarded-For 头）"""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_ok(request: Request) -> bool:
+    """滑动窗口限流：返回 False 表示本次请求应被拒绝"""
+    now = time.time()
+    ip = _client_ip(request)
+    recent = [t for t in _hits[ip] if now - t < _RATE_WINDOW]
+    if len(recent) >= RATE_LIMIT:
+        _hits[ip] = recent
+        return False
+    recent.append(now)
+    _hits[ip] = recent
+    return True
 
 
 # ── 构建向量库 ──────────────────────────────────────────────
@@ -101,7 +132,7 @@ class OnePieceQA:
         is_list_query = any(kw in question for kw in list_keywords)
         
         if is_list_query:
-            docs = self.chroma.similarity_search(question, k=100)
+            docs = self.chroma.similarity_search(question, k=config.LIST_TOP_K)
         else:
             docs = self.chroma.similarity_search(question, k=config.TOP_K)
         
@@ -193,6 +224,9 @@ async def chat(request: Request):
     if not question:
         return {"code": 400, "msg": "问题不能为空", "data": ""}
 
+    if not _rate_ok(request):
+        return {"code": 429, "msg": "提问过于频繁，请稍后再试（演示站点设有频率限制）", "data": ""}
+
     try:
         qa = get_qa()
         answer = qa.ask_question(question)
@@ -209,6 +243,11 @@ async def chat_stream(request: Request):
         async def _error():
             yield f"data: {json.dumps({'error': '问题不能为空'}, ensure_ascii=False)}\n\n"
         return StreamingResponse(_error(), media_type="text/event-stream")
+
+    if not _rate_ok(request):
+        async def _limited():
+            yield f"data: {json.dumps({'error': '提问过于频繁，请稍后再试'}, ensure_ascii=False)}\n\n"
+        return StreamingResponse(_limited(), media_type="text/event-stream")
 
     qa = get_qa()
 

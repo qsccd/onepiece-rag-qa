@@ -73,6 +73,35 @@ python main.py
 
 浏览器打开 <http://localhost:8000>
 
+## 部署（Render 免费层）
+
+本项目可直接部署到 [Render](https://render.com) 的免费实例上，不需要买服务器、不需要备案。
+
+**服务配置**：
+
+| 配置项 | 值 |
+|---|---|
+| Language | `Python 3` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Instance Type | `Free` |
+
+**环境变量**（在 Render 服务的 Environment 页添加）：
+
+```
+DASHSCOPE_API_KEY=你的阿里云百炼密钥
+DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# 以下为公网演示的可选参数
+TOP_K=6                 # 单次检索片段数（默认 50；演示站点调小可大幅降低 token 消耗）
+LIST_TOP_K=20           # 列表类问题检索片段数（默认 100）
+RATE_LIMIT_PER_5MIN=20  # 每个 IP 每 5 分钟提问次数上限
+```
+
+**免费层行为**：实例 15 分钟无访问会自动休眠，下次访问约需 1 分钟冷启动；文件系统是临时的，因此向量库会在每次冷启动时自动重建（几十秒）。
+
+Python 版本由仓库根目录的 `.python-version` 指定（3.12）。
+
 ## 接口说明
 
 | 方法 | 路径 | 说明 |
@@ -94,8 +123,10 @@ python main.py
 ├── serve.py                 # 本地静态文件服务（前端调试用）
 ├── data/                    # 知识库原始资料
 ├── static/                  # 前端页面
-├── requirements.txt
+├── requirements.txt         # 运行依赖（版本已固定）
+├── .python-version          # 部署使用的 Python 版本（3.12）
 ├── .env.example             # 密钥模板
+├── .gitignore               # 排除 .env、向量库、缓存
 └── 界面截图.png
 ```
 
@@ -112,6 +143,10 @@ python main.py
 **密钥为什么放 `.env`？**
 
 API Key 曾在代码中硬编码，这在公开仓库里几分钟就会被爬虫扫到并盗用。现在统一改为从环境变量读取，`.env` 由 `.gitignore` 排除，仓库里只保留 `.env.example` 模板。
+
+**公网部署后怎么防止额度被刷？**
+
+演示站点调用的是作者个人的大模型 API Key，因此加了两层保护：一是按 IP 的滑动窗口限流（默认每 5 分钟 20 次，可用环境变量调整），二是把单次检索片段数调小，降低单次提问的 token 消耗。
 
 ## 后续可改进
 
